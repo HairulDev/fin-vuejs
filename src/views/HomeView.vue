@@ -22,9 +22,12 @@ const portfolioLoading = ref(false);
 const showSearchSection = ref(false);
 
 const showNotesModal = ref(false);
+const noteAction = ref('');
 const noteTitle = ref('');
 const noteContent = ref('');
+const noteFilePaths = ref([]);
 const selectedSymbol = ref('');
+const filePath = ref('');
 
 const noteIsDescending = ref(false);
 
@@ -268,7 +271,6 @@ const handleFileChange = (event) => {
       selectedFiles.value = Array.from(event.target.files);
     };
 
-
 const uploadFile = async () => {
   if (!selectedFiles.value.length) return;
 
@@ -276,29 +278,33 @@ const uploadFile = async () => {
 
   const formData = new FormData();
   selectedFiles.value.forEach((file) => {
-    formData.append("files[]", file); // pakai array supaya backend bisa terima multiple
+    formData.append("files[]", file);
   });
 
   try {
-    const response = await fetch("http://localhost:8080/upload", {
-      method: "POST",
-      body: formData,
-    });
+    const { data } = await axios.post("http://localhost:8080/upload", formData);
 
-    if (response.ok) {
-      alert("Files uploaded successfully!");
-      selectedFiles.value = [];
-    } else {
-      console.error("Upload failed:", await response.text());
-      alert("Upload failed.");
-    }
+    filePath.value = (data.files || []).join(",");
+    alert("Files uploaded successfully!");
+    selectedFiles.value = [];
   } catch (error) {
-    console.error("Error:", error);
+    console.error("Error uploading files:", error);
     alert("Error uploading files.");
   } finally {
     loading.value = false;
   }
 };
+
+const previewUrl = ref("");
+const showPreviewModal = ref(false);
+
+const previewFile = (file) => {
+  previewUrl.value = `http://localhost:8080/download/${file}`;
+  showPreviewModal.value = true;
+};
+
+
+
 
 const loadNotes = async () => {
   if (!selectedSymbol.value) return;
@@ -350,27 +356,36 @@ const resetForm = () => {
   showStocksModal.value = false;
 };
 
-const startEditing = async (noteId) => {
+const startEditing = async (noteId, action) => {
   try {
     const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/comment/${noteId}`);
     const note = response.data;
 
+    noteAction.value = action;
     noteTitle.value = note.title;
     noteContent.value = note.content;
+    noteFilePaths.value = note.filePaths;
     editingNoteId.value = noteId;
     isEditing.value = true;
-    showNotesModal.value = true; // buka modal jika belum
+    showNotesModal.value = true;
   } catch (error) {
     console.error('Failed to fetch note:', error);
     alert('Error fetching note for editing.');
   }
 };
 
+const cancelNote = async () => {
+  showNotesModal.value = false;
+  noteFilePaths.value = [];
+  selectedFiles.value = [];
+;}
+
 const updateNote = async () => {
   try {
     const payload = {
       title: noteTitle.value,
       content: noteContent.value,
+      filePath: filePath.value,
     };
 
     await axios.put(`${import.meta.env.VITE_API_URL}/api/comment/${editingNoteId.value}`, payload);
@@ -399,6 +414,7 @@ const saveNote = async () => {
       {
         title: noteTitle.value,
         content: noteContent.value,
+        filePath: filePath.value, // Hasil upload yang disimpan sebelumnya
       },
       {
         headers: {
@@ -406,15 +422,18 @@ const saveNote = async () => {
         },
       }
     );
-    loading.value = false;
-    alert('Catatan berhasil disimpan.');
+
+    alert("Catatan berhasil disimpan.");
     showNotesModal.value = false;
-    loadNotes(); 
+    loadNotes();
   } catch (err) {
+    console.error("Error saving note:", err);
+    alert(err.response?.data?.message || "Gagal menyimpan catatan.");
+  } finally {
     loading.value = false;
-    alert(err.response?.data?.message || 'Gagal menyimpan catatan.');
   }
 };
+
 
 const deleteNote = async (noteId) => {
   if (!confirm('Are you sure you want to delete this note?')) return;
@@ -882,7 +901,8 @@ const closeStock = () => {
                         <p class="text-[10px] text-gray-400 mt-2">{{ formatDate(note.createdOn) }}</p>
                       </div>
                     <div class="flex gap-2">
-                      <button @click="startEditing(note.id)" class="text-blue-400 hover:text-blue-300 text-sm">Edit</button>
+                      <button @click="startEditing(note.id, 'view')" class="text-gray-400 hover:text-gray-300 text-sm">View</button>
+                      <button @click="startEditing(note.id, 'edit')" class="text-blue-400 hover:text-blue-300 text-sm">Edit</button>
                       <button @click="deleteNote(note.id)" class="text-red-400 hover:text-red-300 text-sm">Delete</button>
                     </div>
                     </li>
@@ -910,14 +930,14 @@ const closeStock = () => {
 
               <div class="flex flex-col gap-3 mt-3">
                 <!-- Input File -->
-                <label class="text-gray-400 text-sm">Upload File</label>
+                <label class="text-gray-400 text-sm">{{noteAction === 'view' ? 'Uploaded' : 'Upload'}} File</label>
                 <label
+                  v-if="noteAction !== 'view'"
                   for="fileInput"
                   class="flex items-center cursor-pointer bg-gray-700 text-gray-200 px-4 py-2 rounded border border-gray-600 hover:bg-gray-600 transition-colors"
                 >
                   <FolderUp class="w-5 h-5 mr-2" /> Choose Files {{ selectedFiles.length ? `(${selectedFiles.length})` : '' }}
                 </label>
-
 
                 <!-- Input file disembunyikan -->
                 <input
@@ -935,21 +955,34 @@ const closeStock = () => {
                     <li v-for="file in selectedFiles" :key="file.name">{{ file.name }}</li>
                   </ul>
                 </div> -->
+                
+                <div v-if="noteFilePaths.length" class="text-sm text-gray-300">
+                  <ul class="list-disc pl-4">
+                    <li
+                      v-for="(file, index) in noteFilePaths"
+                      :key="file"
+                      class="cursor-pointer text-blue-400 underline"
+                      @click="previewFile(file)"
+                    >
+                      File ke {{ index + 1 }}
+                    </li>
+                  </ul>
+                </div>
 
                 <button
                   @click="uploadFile"
                   class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 transition-colors"
                   :disabled="!selectedFiles || loading"
+                  :hidden="noteAction === 'view'"
                 >
                   {{ loading ? 'Uploading...' : 'Upload' }}
                 </button>
               </div>
 
-
               <!-- Buttons -->
               <div class="flex justify-end gap-2 mt-4">
                 <button
-                  @click="showNotesModal = false"
+                  @click="cancelNote"
                   class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-500 transition-colors"
                 >
                   Cancel
@@ -967,6 +1000,26 @@ const closeStock = () => {
 
         </div>
       </div>
+
+        <!-- Modal Preview -->
+        <div
+          v-if="showPreviewModal"
+          class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50"
+        >
+          <div class="bg-white rounded-lg overflow-hidden max-w-4xl w-full max-h-[90vh]">
+            <div class="flex justify-between items-center p-2 bg-gray-800 text-white">
+              <h3 class="text-sm font-semibold">File Preview</h3>
+              <button @click="showPreviewModal = false" class="text-white text-xl">&times;</button>
+            </div>
+            <div class="p-2">
+              <iframe
+                :src="previewUrl"
+                class="w-full h-[80vh]"
+                frameborder="0"
+              ></iframe>
+            </div>
+          </div>
+        </div>
 
       <!-- Modal Stock -->
       <div
