@@ -3,7 +3,7 @@ import { ref, onMounted, computed, watchEffect } from 'vue';
 import axios from 'axios';
 import { getCachedOrFetch } from '../utils/cacheUtils';
 import DividendChart from '../components/DividendChart.vue';
-import {  TrendingUp, BadgePlus, Search, TrendingDown, Activity, Layers, FolderUp } from 'lucide-vue-next';
+import {  TrendingUp, BadgePlus, Search, TrendingDown, Activity, Layers, FolderUp, Folder } from 'lucide-vue-next';
 import { formatDate } from '../utils/datetime';
 const token = localStorage.getItem('token');
 
@@ -62,6 +62,9 @@ const isEditingStock = ref(false);
 const editingStockId = ref(null);
 
 const selectedFiles = ref([]);
+
+const previewUrl = ref("");
+const showPreviewModal = ref(false);
 
 // PART portfolio
 const searchStocks = async () => {
@@ -269,13 +272,12 @@ const totalGain = computed(() => {
 
 const handleFileChange = (event) => {
       selectedFiles.value = Array.from(event.target.files);
-    };
+};
 
 const uploadFile = async () => {
   if (!selectedFiles.value.length) return;
-
+  console.log("uploadFile called")
   loading.value = true;
-
   const formData = new FormData();
   selectedFiles.value.forEach((file) => {
     formData.append("files[]", file);
@@ -283,9 +285,7 @@ const uploadFile = async () => {
 
   try {
     const { data } = await axios.post("http://localhost:8080/upload", formData);
-
     filePath.value = (data.files || []).join(",");
-    alert("Files uploaded successfully!");
     selectedFiles.value = [];
   } catch (error) {
     console.error("Error uploading files:", error);
@@ -295,16 +295,21 @@ const uploadFile = async () => {
   }
 };
 
-const previewUrl = ref("");
-const showPreviewModal = ref(false);
+const deleteFile = async (file) => {
+  try {
+    await axios.delete(`http://localhost:8080/delete/${file}`);
+  } catch (error) {
+    console.error("Error deleting files:", error);
+    alert("Error deleting files.");
+  } finally {
+    loading.value = false;
+  }
+};
 
 const previewFile = (file) => {
   previewUrl.value = `http://localhost:8080/download/${file}`;
   showPreviewModal.value = true;
 };
-
-
-
 
 const loadNotes = async () => {
   if (!selectedSymbol.value) return;
@@ -338,11 +343,13 @@ const openNotesModal = (symbol) => {
 
 const resetForm = () => {
   // part note
+  noteAction.value = '';
   noteTitle.value = '';
   noteContent.value = '';
+  noteFilePaths.value = [];
+  selectedFiles.value = [];
   editingNoteId.value = null;
   isEditing.value = false;
-  showNotesModal.value = false;
 
   // part stock
   stockSymbol.value = '';
@@ -375,30 +382,73 @@ const startEditing = async (noteId, action) => {
 };
 
 const cancelNote = async () => {
+  noteAction.value = '';
   showNotesModal.value = false;
   noteFilePaths.value = [];
   selectedFiles.value = [];
+  isEditing.value = false;
 ;}
+
+const delEditFile = async (file) => {
+  if (!confirm('Are you sure you want to delete this file?')) return;
+  loading.value = true;
+  try {
+    await deleteFile(file);
+    noteFilePaths.value = noteFilePaths.value.filter(f => f !== file);
+
+    const payload = {
+        title: noteTitle.value,
+        content: noteContent.value,
+        filePath: (noteFilePaths.value || []).join(",")
+      };
+
+      await axios.put(`${import.meta.env.VITE_API_URL}/api/comment/${editingNoteId.value}`, payload);
+      const index = notesList.value.findIndex(n => n.id === editingNoteId.value);
+      if (index !== -1) {
+        notesList.value[index].title = noteTitle.value;
+        notesList.value[index].content = noteContent.value;
+      }
+    resetForm();
+    alert('File deleted successfully.');
+  } catch (error) {
+    console.error("Error deleting file:", error);
+    alert("Error deleting file.");
+  } finally {
+    loading.value = false;
+  }
+};
 
 const updateNote = async () => {
   try {
-    const payload = {
-      title: noteTitle.value,
-      content: noteContent.value,
-      filePath: filePath.value,
-    };
+    await uploadFile(); // upload
 
-    await axios.put(`${import.meta.env.VITE_API_URL}/api/comment/${editingNoteId.value}`, payload);
-
-    // Update local list
-    const index = notesList.value.findIndex(n => n.id === editingNoteId.value);
-    if (index !== -1) {
-      notesList.value[index].title = noteTitle.value;
-      notesList.value[index].content = noteContent.value;
+    let fileExist = '';
+    if(noteFilePaths.value) {
+      fileExist = (noteFilePaths.value || []).join(",");
+    }
+    console.log("fileExist===>>",fileExist)
+    console.log("filePath.value===>>",filePath.value)
+    if (fileExist) {
+        filePath.value = fileExist + "," + filePath.value;
     }
 
-    alert('Note updated successfully.');
-    resetForm();
+      const payload = {
+        title: noteTitle.value,
+        content: noteContent.value,
+        filePath: filePath.value,
+      };
+
+      console.log("payload====>>",payload)
+      await axios.put(`${import.meta.env.VITE_API_URL}/api/comment/${editingNoteId.value}`, payload);
+      // Update local list
+      const index = notesList.value.findIndex(n => n.id === editingNoteId.value);
+      if (index !== -1) {
+        notesList.value[index].title = noteTitle.value;
+        notesList.value[index].content = noteContent.value;
+      }
+
+      alert('Note updated successfully.');
+      resetForm();
   } catch (error) {
     console.error(error);
     alert('Error updating note.');
@@ -409,23 +459,27 @@ const saveNote = async () => {
   loading.value = true;
 
   try {
-    const response = await axios.post(
-      `${import.meta.env.VITE_API_URL}/api/comment/${encodeURIComponent(selectedSymbol.value)}`,
-      {
-        title: noteTitle.value,
-        content: noteContent.value,
-        filePath: filePath.value, // Hasil upload yang disimpan sebelumnya
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+    await uploadFile(); // upload
+
+    if(filePath.value) {
+      await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/comment/${encodeURIComponent(selectedSymbol.value)}`,
+          {
+            title: noteTitle.value,
+            content: noteContent.value,
+            filePath: filePath.value, // Hasil upload yang disimpan sebelumnya
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+      );
+    }
 
     alert("Catatan berhasil disimpan.");
-    showNotesModal.value = false;
     loadNotes();
+    resetForm();
   } catch (err) {
     console.error("Error saving note:", err);
     alert(err.response?.data?.message || "Gagal menyimpan catatan.");
@@ -434,15 +488,22 @@ const saveNote = async () => {
   }
 };
 
-
 const deleteNote = async (noteId) => {
   if (!confirm('Are you sure you want to delete this note?')) return;
-
   loading.value = true;
-
   try {
-    const response = await axios.delete(`${import.meta.env.VITE_API_URL}/api/comment/${noteId}`);
+    const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/api/comment/${noteId}`);
+    noteFilePaths.value = data.filePaths;
+
+    if (noteFilePaths.value.length) {
+      for (const file of noteFilePaths.value) {
+        await deleteFile(file);
+      }
+    }
+
+    await axios.delete(`${import.meta.env.VITE_API_URL}/api/comment/${noteId}`);
     notesList.value = notesList.value.filter(note => note.id !== noteId);
+    resetForm();
   } catch (error) {
     console.error(error);
     alert('Error deleting note.');
@@ -911,7 +972,7 @@ const closeStock = () => {
               </div>
               <!-- Add Note Form -->
               <h3 class="text-lg font-semibold text-white mb-2">
-                Add Note
+                {{ noteAction === 'view' ? 'View' : (isEditing ? 'Edit' : 'Add') }} Note
               </h3>
               <div class="flex flex-col gap-3">
                 <input
@@ -956,27 +1017,31 @@ const closeStock = () => {
                   </ul>
                 </div> -->
                 
-                <div v-if="noteFilePaths.length" class="text-sm text-gray-300">
-                  <ul class="list-disc pl-4">
+                <div v-if="noteFilePaths.length" class="text-sm text-gray-200 space-y-2">
+                  <div class="font-semibold mb-1">Files:</div>
+                  <ul class="pl-4 space-y-1">
                     <li
                       v-for="(file, index) in noteFilePaths"
                       :key="file"
-                      class="cursor-pointer text-blue-400 underline"
-                      @click="previewFile(file)"
+                      class="flex items-center justify-between group"
                     >
-                      File ke {{ index + 1 }}
+                      <div
+                        @click="previewFile(file)"
+                        class="flex cursor-pointer text-blue-400 underline hover:text-blue-300 transition"
+                      >
+                      <Folder class="w-5 h-5 mr-2" /> File ke-{{ index + 1 }}
+                      </div>
+                      <button
+                        v-if="noteAction === 'edit'"
+                        @click.stop="delEditFile(file)"
+                        class="text-red-400 text-xs opacity-0 group-hover:opacity-100 hover:text-red-300 transition"
+                      >
+                       Delete
+                      </button>
                     </li>
                   </ul>
                 </div>
 
-                <button
-                  @click="uploadFile"
-                  class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 transition-colors"
-                  :disabled="!selectedFiles || loading"
-                  :hidden="noteAction === 'view'"
-                >
-                  {{ loading ? 'Uploading...' : 'Upload' }}
-                </button>
               </div>
 
               <!-- Buttons -->
@@ -991,7 +1056,7 @@ const closeStock = () => {
                   @click="isEditing ? updateNote() : saveNote()"
                   class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 transition-colors"
                 >
-                  {{ loading ? 'Saving...' : isEditing ? 'Update' : 'Save' }}
+                  {{ isEditing ? 'Update' : 'Save' }}
                 </button>
 
               </div>
