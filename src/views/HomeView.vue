@@ -8,6 +8,9 @@ import DividendChart from '../components/DividendChart.vue'
 import { TrendingUp, BadgePlus, Search, TrendingDown, Activity, Layers, FolderUp, Folder } from 'lucide-vue-next'
 import { formatDate } from '../utils/datetime'
 
+import SummarySection from '../components/SummarySection.vue'
+import ModalStock from '../components/ModalStock.vue'
+
 const token = localStorage.getItem('token')
 
 // ====================== STATE MANAGEMENT ======================
@@ -95,7 +98,7 @@ const {
   handleSubmit: handleStockSubmit, 
   errors: stockErrors,
   resetForm: resetStockForm,
-  setFieldValue
+  setValues
 } = useForm({
   validationSchema: stockSchema,
   initialValues: state.stocks.form
@@ -298,6 +301,15 @@ const loadStocks = async () => {
   }
 }
 
+const onSubmitStock = (e) => {
+  e.preventDefault()
+  if (state.stocks.isEditing) {
+    updateStock(state.stocks.form)
+  } else {
+    saveStock(state.stocks.form)
+  }
+}
+
 const saveStock = handleStockSubmit(async (values) => {
   state.portfolio.loading = true
   try {
@@ -342,14 +354,16 @@ const startEditingStock = async (stockId) => {
   try {
     const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/stock/${stockId}`)
     const stock = response.data
-    
-    // Set form values
-    Object.keys(stock).forEach(key => {
-      if (key in state.stocks.form) {
-        state.stocks.form[key] = stock[key]
-      }
+    // Inject ke form
+    setValues({
+      symbol: stock.symbol ?? '',
+      companyName: stock.companyName ?? '',
+      purchase: stock.purchase ?? '',
+      lastDiv: stock.lastDiv ?? '',
+      industry: stock.industry ?? '',
+      marketCap: stock.marketCap ?? ''
     })
-    
+
     state.stocks.editingId = stockId
     state.stocks.isEditing = true
     state.stocks.modalStep = 2
@@ -610,74 +624,42 @@ watchEffect(() => {
 
 <template>
   <div class="min-h-screen bg-gray-900 text-white">
-    <!-- Header Section -->
     <div class="px-6 py-6">
       <!-- Summary Section -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-5">
-        <!-- Total Portfolio -->
-        <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm text-gray-400">Total Portfolio</p>
-              <p class="text-2xl font-bold text-white">${{ totalValue.toLocaleString() }}</p>
-            </div>
-            <div
-              :class="{
-                'text-red-400': totalGain < 0,
-                'text-green-400': totalGain >= 0,
-                'text-sm flex items-center': true
-              }"
-            >
-              <span class="text-xs">
-                <TrendingUp v-if="totalGain >= 0" class="w-3 h-3 text-green-400" />
-                <TrendingDown v-else class="w-3 h-3 text-red-400" />
-              </span>
-              <span class="ml-1">
-                {{ totalGain >= 0 ? '+' : '' }}{{ totalGain }}%
-              </span>
-            </div>
-          </div>
-        </div>
+      <SummarySection
+        :total-value="totalValue"
+        :total-gain="totalGain"
+        :portfolio-items="state.portfolio.items"
+        :stocks-count="state.stocks.list.length"
+        :open-stocks-modal="openStocksModal"
+      />
 
-        <!-- Active Positions -->
-        <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm text-gray-400">Active Positions</p>
-              <p class="text-2xl font-bold text-white">{{ state.portfolio.items.length }}</p>
-            </div>
-            <div class="text-blue-400 text-sm">
-              <Activity class="w-5 h-5" />
-            </div>
-          </div>
-        </div>
-
-        <!-- Stocks Internal -->
-        <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm text-gray-400">Stocks Internal
-                <button @click="openStocksModal" class="px-3 py-1 text-xs bg-gray-700 text-gray-300 rounded hover:bg-gray-600 transition-colors">Show</button>
-              </p>
-              <p class="text-2xl font-bold text-white">{{ state.stocks.list.length }}</p>
-            </div>
-            <div class="text-blue-400 text-sm">
-              <Layers class="w-5 h-5" />
-            </div>
-          </div>
-        </div>
-
-        <!-- Market Status -->
-        <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm text-gray-400">Market Status</p>
-              <p class="text-lg font-semibold text-green-400">Open</p>
-            </div>
-            <div class="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-          </div>
-        </div>
-      </div>
+      <!-- Modal Stock -->
+      <ModalStock
+        :show-modal="state.stocks.showModal"
+        :modal-step="state.stocks.modalStep"
+        :is-editing="state.stocks.isEditing"
+        :loading="state.portfolio.loading"
+        :search="state.stocks.search"
+        :stocks-list="state.stocks.list"
+        :form="state.stocks.form"
+        :editing-id="state.stocks.editingId"
+        :errors="stockErrors"
+        @update:modal-step="val => state.stocks.modalStep = val"
+        @update:is-editing="val => state.stocks.isEditing = val"
+        @update:search="val => state.stocks.search = val"
+        @update:form="val => state.stocks.form = val"
+        @update:editing-id="val => state.stocks.editingId = val"
+        @close="closeStock"
+        @loadStocks="loadStocks"
+        @startEditingStock="startEditingStock"
+        @deleteStock="deleteStock"
+        @prevPage="prevPage"
+        @nextPage="nextPage"
+        @backToStockList="backToStockList"
+        @resetForm="resetForm"
+        @onSubmitStock="onSubmitStock"
+      />
 
       <!-- Portfolio Section -->
       <button 
@@ -687,7 +669,7 @@ watchEffect(() => {
         <BadgePlus class="w-4 h-4" />Portfolio
       </button>
 
-      <!-- Modal Search -->
+      <!-- Modal Search Portfolio -->
       <div
         v-if="state.ui.showSearchSection"
         class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50"
@@ -753,7 +735,7 @@ watchEffect(() => {
         </div>
       </div>
 
-      <!-- Your Portfolio Section -->
+      <!-- List Portfolio -->
       <div class="bg-gray-800 rounded-lg border border-gray-700">
         <div class="px-6 py-2 border-b border-gray-700">
           <h2 class="text-xl font-semibold text-white">Your Portfolio</h2>
@@ -976,277 +958,9 @@ watchEffect(() => {
               </div>
             </div>
           </div>
-
-          <!-- Modal Stock -->
-          <div
-            v-if="state.stocks.showModal"
-            class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50"
-          >
-            <div class="bg-gray-800 rounded-lg p-6 w-full max-w-4xl border border-gray-600">
-              <!-- Step Indicator -->
-              <div class="flex mb-6">
-                <div 
-                  class="flex-1 text-center pb-2 border-b-2"
-                  :class="state.stocks.modalStep === 1 ? 'border-blue-500 text-blue-500' : 'border-gray-600 text-gray-400'"
-                >
-                  Stock List
-                </div>
-                <div 
-                  class="flex-1 text-center pb-2 border-b-2"
-                  :class="state.stocks.modalStep === 2 ? 'border-blue-500 text-blue-500' : 'border-gray-600 text-gray-400'"
-                >
-                  {{ state.stocks.isEditing ? 'Edit' : 'Add' }} Stock
-                </div>
-              </div>
-
-              <!-- Step 1: Stock List -->
-              <div v-if="state.stocks.modalStep === 1">
-                <!-- Search and Filter Section -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label class="block text-sm text-gray-400 mb-1">Symbol</label>
-                    <input
-                      v-model="state.stocks.search.symbol"
-                      type="text"
-                      placeholder="Filter by symbol"
-                      class="bg-gray-700 text-white border border-gray-600 rounded px-4 py-2 w-full focus:outline-none"
-                      @input="loadStocks"
-                    />
-                  </div>
-                  <div>
-                    <label class="block text-sm text-gray-400 mb-1">Company Name</label>
-                    <input
-                      v-model="state.stocks.search.companyName"
-                      type="text"
-                      placeholder="Filter by company name"
-                      class="bg-gray-700 text-white border border-gray-600 rounded px-4 py-2 w-full focus:outline-none"
-                      @input="loadStocks"
-                    />
-                  </div>
-                </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  <div>
-                    <label class="block text-sm text-gray-400 mb-1">Sort By</label>
-                    <select
-                      v-model="state.stocks.search.sortBy"
-                      class="bg-gray-700 text-white border border-gray-600 rounded px-4 py-2 w-full focus:outline-none"
-                      @change="loadStocks"
-                    >
-                      <option value="symbol">Symbol</option>
-                      <option value="companyName">Company Name</option>
-                      <option value="purchase">Purchase Price</option>
-                      <option value="lastDiv">Last Dividend</option>
-                      <option value="marketCap">Market Cap</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label class="block text-sm text-gray-400 mb-1">Order</label>
-                    <select
-                      v-model="state.stocks.search.isDescending"
-                      class="bg-gray-700 text-white border border-gray-600 rounded px-4 py-2 w-full focus:outline-none"
-                      @change="loadStocks"
-                    >
-                      <option :value="false">Ascending</option>
-                      <option :value="true">Descending</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label class="block text-sm text-gray-400 mb-1">Items Per Page</label>
-                    <select
-                      v-model="state.stocks.search.pageSize"
-                      class="bg-gray-700 text-white border border-gray-600 rounded px-4 py-2 w-full focus:outline-none"
-                      @change="loadStocks"
-                    >
-                      <option value="5">5</option>
-                      <option value="10">10</option>
-                      <option value="20">20</option>
-                      <option value="50">50</option>
-                    </select>
-                  </div>
-                </div>
-
-                <!-- List Stocks -->
-                <h3 class="text-lg font-semibold text-white mb-4">
-                  Stocks List
-                  <button 
-                    @click="state.stocks.modalStep = 2" 
-                    class="ml-4 px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-500 transition-colors"
-                  >
-                    Add New Stock
-                  </button>
-                </h3>
-                <div class="mb-4 max-h-96 overflow-y-auto">
-                  <table class="min-w-full divide-y divide-gray-700">
-                    <thead class="bg-gray-700">
-                      <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Symbol</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Company</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Purchase</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Last Div</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody class="bg-gray-800 divide-y divide-gray-700">
-                      <tr v-for="stock in state.stocks.list" :key="stock.id">
-                        <td class="px-4 py-2 whitespace-nowrap text-sm font-medium text-white">{{ stock.symbol }}</td>
-                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300">{{ stock.companyName }}</td>
-                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300">${{ stock.purchase }}</td>
-                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300">${{ stock.lastDiv }}</td>
-                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300">
-                          <button @click="startEditingStock(stock.id)" class="text-blue-400 hover:text-blue-300 mr-2">Edit</button>
-                          <button @click="deleteStock(stock.id)" class="text-red-400 hover:text-red-300">Delete</button>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                  <p v-if="!state.stocks.list.length" class="text-gray-400 text-sm text-center py-4">No stocks found.</p>
-                </div>
-
-                <!-- Pagination -->
-                <div class="flex items-center justify-between mt-4">
-                  <button
-                    @click="prevPage"
-                    :disabled="state.stocks.search.pageNumber === 1"
-                    class="px-4 py-1 bg-gray-600 text-white rounded hover:bg-gray-500 transition-colors disabled:opacity-50"
-                  >
-                    Previous
-                  </button>
-                  <span class="text-sm text-gray-300">Page {{ state.stocks.search.pageNumber }}</span>
-                  <button
-                    @click="nextPage"
-                    :disabled="state.stocks.list.length < state.stocks.search.pageSize"
-                    class="px-4 py-1 bg-gray-600 text-white rounded hover:bg-gray-500 transition-colors disabled:opacity-50"
-                  >
-                    Next
-                  </button>
-                </div>
-
-                <!-- Close Button -->
-                <div class="flex justify-end mt-6">
-                  <button
-                    @click="closeStock"
-                    class="px-4 py-1 bg-gray-600 text-white rounded hover:bg-gray-500 transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-
-              <!-- Step 2: Stock Form -->
-              <div v-if="state.stocks.modalStep === 2">
-                <h3 class="text-lg font-semibold text-white mb-4">
-                  {{ state.stocks.isEditing ? 'Edit Stock' : 'Add New Stock' }}
-                </h3>
-                
-                <form @submit="state.stocks.isEditing ? updateStock : saveStock">
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label class="block text-sm text-gray-400 mb-1">Symbol</label>
-                      <Field
-                        name="symbol"
-                        type="text"
-                        placeholder="Symbol"
-                        class="bg-gray-700 text-white border border-gray-600 rounded px-4 py-2 w-full focus:outline-none"
-                      />
-                      <ErrorMessage name="symbol" v-slot="{ message }">
-                        <p class="text-red-500 text-xs mt-1">{{ message }}</p>
-                      </ErrorMessage>
-                    </div>
-                    <div>
-                      <label class="block text-sm text-gray-400 mb-1">Company Name</label>
-                      <Field
-                        name="companyName"
-                        type="text"
-                        placeholder="Company Name"
-                        class="bg-gray-700 text-white border border-gray-600 rounded px-4 py-2 w-full focus:outline-none"
-                      />
-                      <ErrorMessage name="companyName" v-slot="{ message }">
-                        <p class="text-red-500 text-xs mt-1">{{ message }}</p>
-                      </ErrorMessage>
-                    </div>
-                    <div>
-                      <label class="block text-sm text-gray-400 mb-1">Purchase Price</label>
-                      <Field
-                        name="purchase"
-                        type="number"
-                        placeholder="Purchase"
-                        class="bg-gray-700 text-white border border-gray-600 rounded px-4 py-2 w-full focus:outline-none"
-                      />
-                      <ErrorMessage name="purchase" v-slot="{ message }">
-                        <p class="text-red-500 text-xs mt-1">{{ message }}</p>
-                      </ErrorMessage>
-                    </div>
-                    <div>
-                      <label class="block text-sm text-gray-400 mb-1">Last Dividend</label>
-                      <Field
-                        name="lastDiv"
-                        type="number"
-                        placeholder="Last Div"
-                        class="bg-gray-700 text-white border border-gray-600 rounded px-4 py-2 w-full focus:outline-none"
-                      />
-                      <ErrorMessage name="lastDiv" v-slot="{ message }">
-                        <p class="text-red-500 text-xs mt-1">{{ message }}</p>
-                      </ErrorMessage>
-                    </div>
-                    <div>
-                      <label class="block text-sm text-gray-400 mb-1">Industry</label>
-                      <Field
-                        name="industry"
-                        type="text"
-                        placeholder="Industry"
-                        class="bg-gray-700 text-white border border-gray-600 rounded px-4 py-2 w-full focus:outline-none"
-                      />
-                      <ErrorMessage name="industry" v-slot="{ message }">
-                        <p class="text-red-500 text-xs mt-1">{{ message }}</p>
-                      </ErrorMessage>
-                    </div>
-                    <div>
-                      <label class="block text-sm text-gray-400 mb-1">Market Cap</label>
-                      <Field
-                        name="marketCap"
-                        type="number"
-                        placeholder="Market Cap"
-                        class="bg-gray-700 text-white border border-gray-600 rounded px-4 py-2 w-full focus:outline-none"
-                      />
-                      <ErrorMessage name="marketCap" v-slot="{ message }">
-                        <p class="text-red-500 text-xs mt-1">{{ message }}</p>
-                      </ErrorMessage>
-                    </div>
-                  </div>
-
-                  <!-- Buttons -->
-                  <div class="flex justify-between mt-6">
-                    <button
-                      type="button"
-                      @click="backToStockList"
-                      class="px-4 py-1 bg-gray-600 text-white rounded hover:bg-gray-500 transition-colors"
-                    >
-                      Back to List
-                    </button>
-                    <div class="flex gap-2">
-                      <button
-                        type="button"
-                        @click="resetForm"
-                        class="px-4 py-1 bg-gray-600 text-white rounded hover:bg-gray-500 transition-colors"
-                      >
-                        Reset
-                      </button>
-                      <button
-                        type="submit"
-                        :disabled="state.portfolio.loading"
-                        class="px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-500 transition-colors disabled:opacity-50"
-                      >
-                        {{ state.portfolio.loading ? 'Saving...' : state.stocks.isEditing ? 'Update' : 'Save' }}
-                      </button>
-                    </div>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
+
     </div>
   </div>
 </template>
