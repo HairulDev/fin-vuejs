@@ -1,15 +1,15 @@
 <script setup>
 import { reactive, ref, onMounted, computed, watchEffect } from 'vue'
-import { useForm, Field, ErrorMessage } from 'vee-validate'
+import { useForm, } from 'vee-validate'
 import * as yup from 'yup'
 import axios from 'axios'
 import { getCachedOrFetch } from '../utils/cacheUtils'
-import DividendChart from '../components/DividendChart.vue'
-import { TrendingUp, BadgePlus, Search, TrendingDown, Activity, Layers, FolderUp, Folder } from 'lucide-vue-next'
 import { formatDate } from '../utils/datetime'
 
 import SummarySection from '../components/SummarySection.vue'
 import ModalStock from '../components/ModalStock.vue'
+import PortfolioSection from '../components/PortfolioSection.vue'
+import { Folder, FolderUp } from 'lucide-vue-next'
 
 const token = localStorage.getItem('token')
 
@@ -473,6 +473,7 @@ const saveNote = async () => {
   }
 }
 
+// BUG : edit (exist file) -> upload new file -> old file replaced 
 const updateNote = async () => {
   state.portfolio.loading = true
   try {
@@ -662,150 +663,26 @@ watchEffect(() => {
       />
 
       <!-- Portfolio Section -->
-      <button 
-        @click="state.ui.showSearchSection = !state.ui.showSearchSection" 
-        class="px-3 py-1 mb-2 text-xs bg-gray-700 text-gray-300 rounded hover:bg-gray-600 transition-colors flex items-center gap-2"
-      >
-        <BadgePlus class="w-4 h-4" />Portfolio
-      </button>
+      <PortfolioSection
+        :show-search-section="state.ui.showSearchSection"
+        :search-query="state.search.query"
+        :search-results="state.search.results"
+        :search-loading="state.search.loading"
+        :search-error="state.search.error"
+        :show-suggestions="state.search.showSuggestions"
+        :portfolio-items="state.portfolio.items"
+        :portfolio-dividends="state.portfolio.dividends"
+        :portfolio-loading="state.portfolio.loading"
+        :portfolio-error="state.portfolio.error"
+        @update:show-search-section="val => state.ui.showSearchSection = val"
+        @update:search-query="val => state.search.query = val"
+        @search="searchStocks"
+        @clear="clearSearch"
+        @select="selectSuggestion"
+        @delete="deletePortfolio"
+        @open-notes="openNotesModal"
+      />
 
-      <!-- Modal Search Portfolio -->
-      <div
-        v-if="state.ui.showSearchSection"
-        class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50"
-      >
-        <div class="bg-gray-800 rounded-lg p-6 h-[500px] w-full max-w-md border border-gray-600 flex flex-col">
-          <h2 class="text-lg font-semibold mb-4 text-gray-200">Add Stock to Portfolio</h2>
-          
-          <!-- Search Input -->
-          <div class="flex flex-col md:flex-row gap-3 relative">
-            <div class="relative flex-1">
-              <input
-                v-model="state.search.query"
-                @input="state.search.showSuggestions = true"
-                type="text"
-                placeholder="Search stocks (e.g., AAPL, MSFT, GOOGL)..."
-                class="bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 w-full text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10"
-              />
-              <button
-                v-if="state.search.query"
-                @click="clearSearch"
-                class="absolute inset-y-0 right-3 text-gray-400 hover:text-gray-200 transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-            <button
-              @click="searchStocks"
-              :disabled="state.search.loading"
-              class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-medium"
-            >
-              <Search class="w-5 h-5" />
-            </button>
-
-            <!-- Autocomplete suggestions -->
-            <div
-              v-if="state.search.showSuggestions && state.search.results.length"
-              class="absolute z-20 top-full left-0 w-full bg-gray-700 border border-gray-600 rounded-lg shadow-xl max-h-60 overflow-y-auto mt-1"
-            >
-              <div
-                v-for="item in state.search.results"
-                :key="item.symbol"
-                @click="selectSuggestion(item)"
-                class="px-4 py-3 cursor-pointer hover:bg-gray-600 transition-colors border-b border-gray-600 last:border-b-0"
-              >
-                <div class="font-medium text-white">{{ item.name }}</div>
-                <div class="text-sm text-gray-400">{{ item.symbol }} • {{ item.exchangeShortName }}</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Error -->
-          <p v-if="state.search.error" class="text-red-400 mt-3 text-sm">{{ state.search.error }}</p>
-
-          <!-- Buttons -->
-          <div class="mt-auto pt-4">
-            <button
-              @click="state.ui.showSearchSection = false"
-              class="w-full px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-500 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- List Portfolio -->
-      <div class="bg-gray-800 rounded-lg border border-gray-700">
-        <div class="px-6 py-2 border-b border-gray-700">
-          <h2 class="text-xl font-semibold text-white">Your Portfolio</h2>
-        </div>
-
-        <div class="p-6">
-          <div v-if="state.portfolio.loading" class="text-center py-8">
-            <div class="inline-block animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
-            <p class="text-gray-400 mt-2">Loading portfolio...</p>
-          </div>
-
-          <p v-else-if="state.portfolio.error" class="text-red-400 text-center py-8">{{ state.portfolio.error }}</p>
-
-          <div v-else-if="state.portfolio.items.length" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            <div
-              v-for="(item, index) in state.portfolio.items"
-              :key="index"
-              class="bg-gray-800 rounded-lg p-5 border border-gray-600 hover:border-gray-500 transition-all duration-200 hover:shadow-lg"
-            >
-              <!-- Stock Header -->
-              <div class="flex justify-between items-start mb-4">
-                <div>
-                  <h3 class="font-bold text-lg text-blue-400">{{ item.symbol }}</h3>
-                  <p class="text-2xl font-bold text-white mt-1">${{ item.price }}</p>
-                </div>
-                <button 
-                  @click="deletePortfolio(item.symbol)" 
-                  class="text-gray-400 hover:text-red-400 transition-colors p-1 rounded hover:bg-gray-600"
-                  title="Remove from portfolio"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                  </svg>
-                </button>
-              </div>
-
-              <!-- Dividend Chart -->
-              <div class="mt-4">
-                <div v-if="state.portfolio.dividends[item.symbol]?.length" class="h-32 mb-3">
-                  <DividendChart :data="state.portfolio.dividends[item.symbol]" />
-                </div>
-                <div v-else class="h-32 flex items-center justify-center bg-gray-800 rounded border border-gray-600 mb-3">
-                  <p class="text-gray-500 text-sm">No dividend data available</p>
-                </div>
-                
-                <!-- Chart Label -->
-                <div class="flex items-center justify-between text-xs text-gray-400 gap-2">
-                  <span v-if="state.portfolio.dividends[item.symbol]?.length">
-                    Dividend History {{ state.portfolio.dividends[item.symbol].length }} records
-                  </span>
-                  <button
-                    @click="openNotesModal(item.symbol)"
-                    class="px-3 py-1 text-xs bg-gray-700 text-gray-300 rounded hover:bg-gray-600 transition-colors flex items-center gap-2"
-                  >
-                    Notes
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div v-else class="text-center py-12">
-            <div class="text-gray-500 mb-4">
-              <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-              </svg>
-              <p class="text-lg font-medium">No stocks in portfolio</p>
-              <p class="text-sm">Search and add stocks to get started</p>
-            </div>
-          </div>
 
           <!-- Modal Notes -->
           <div
@@ -958,8 +835,7 @@ watchEffect(() => {
               </div>
             </div>
           </div>
-        </div>
-      </div>
+
 
     </div>
   </div>

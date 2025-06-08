@@ -48,7 +48,7 @@ const logout = () => {
         @click="logout"
         class="w-full text-left p-3 rounded-lg flex items-center gap-2 hover:bg-gray-50 text-gray-400 transition"
       >
-        <LogOut class="w-4 h-4" /> <!-- fix: ganti User dengan LogOut -->
+        <LogOut class="w-4 h-4" />
         <span class="font-medium text-sm">Logout</span>
       </button>
     </div>

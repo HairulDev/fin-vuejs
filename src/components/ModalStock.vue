@@ -1,5 +1,3 @@
-
-
 <script setup>
 import { Field, ErrorMessage } from 'vee-validate'
 
@@ -162,11 +160,12 @@ const loadStocks = () => {
         <h3 class="text-lg font-semibold text-white mb-4">
           Stocks List
           <button 
-            @click="modalStep = 2" 
+            @click="emit('update:modalStep', 2)" 
             class="ml-4 px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-500 transition-colors"
           >
             Add New Stock
           </button>
+
         </h3>
         <div class="mb-4 max-h-96 overflow-y-auto">
           <table class="min-w-full divide-y divide-gray-700">
