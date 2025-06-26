@@ -1,7 +1,7 @@
 # Documentation for Using This Project
 This is frontend vue version.
-.Net core version clone https://github.com/HairulDev/fin-netcore
-RustAxum version clone https://github.com/HairulDev/fin-rustaxum
+- .Net core version clone https://github.com/HairulDev/fin-netcore
+- RustAxum version clone https://github.com/HairulDev/fin-rustaxum
 
 ## Prerequisites
 - Ensure you have Node.js and npm installed on your system.
