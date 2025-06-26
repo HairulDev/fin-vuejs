@@ -1,7 +1,17 @@
-# Documentation for Using This Project
-This is frontend vue version.
-- .Net core version clone https://github.com/HairulDev/fin-netcore
-- RustAxum version clone https://github.com/HairulDev/fin-rustaxum
+# Project Documentation
+
+This repository contains documentation and references for both the **backend** (.NET Core 8) and **backend** (Rust Axum for upload/download file) and **frontend** (Vue.js or React.js)
+
+---
+
+## Related Projects
+
+- **.NET Core 8 (Backend)**: [fin-netcore](https://github.com/HairulDev/fin-netcore)
+- **Vue.js (Frontend)**: [fin-vuejs](https://github.com/HairulDev/fin-vuejs)
+- **Rust (Axum) Version**: [fin-rustaxum](https://github.com/HairulDev/fin-rustaxum)
+- **React (TypeScript) Version**: [fin-reactts](https://github.com/HairulDev/fin-reactts)
+
+---
 
 ## Prerequisites
 - Ensure you have Node.js and npm installed on your system.
