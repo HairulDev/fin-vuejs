@@ -194,7 +194,6 @@ const loadStocks = () => {
           <p v-if="!stocksList.length" class="text-gray-400 text-sm text-center py-4">No stocks found.</p>
         </div>
 
-        <!-- Pagination -->
         <div class="flex items-center justify-between mt-4">
           <button
             @click="prevPage"
@@ -213,7 +212,6 @@ const loadStocks = () => {
           </button>
         </div>
 
-        <!-- Close Button -->
         <div class="flex justify-end mt-6">
           <button
             @click="closeModal"

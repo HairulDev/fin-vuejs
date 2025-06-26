@@ -71,10 +71,8 @@ const emit = defineEmits([
           </div>
         </div>
   
-        <!-- Error -->
         <p v-if="error" class="text-red-400 mt-3 text-sm">{{ error }}</p>
   
-        <!-- Buttons -->
         <div class="mt-auto pt-4">
           <button
             @click="$emit('close')"

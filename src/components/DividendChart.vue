@@ -22,15 +22,15 @@ const chartData = {
   datasets: [
     {
       label: 'Dividend History',
-      borderColor: '#10B981', // Hijau (emerald-500)
-      backgroundColor: 'rgba(16, 185, 129, 0.1)', // Hijau transparan
+      borderColor: '#10B981',
+      backgroundColor: 'rgba(16, 185, 129, 0.1)',
       data: props.data.map(item => item.dividend),
       fill: true,
-      tension: 0.4, // Smooth curves
+      tension: 0.4,
       pointRadius: 4,
       pointHoverRadius: 6,
-      pointBackgroundColor: '#10B981', // Hijau
-      pointBorderColor: '#1F2937', // Dark border
+      pointBackgroundColor: '#10B981',
+      pointBorderColor: '#1F2937',
       pointBorderWidth: 2,
       borderWidth: 2,
     },
@@ -42,7 +42,7 @@ const chartOptions = {
   maintainAspectRatio: false,
   plugins: {
     legend: { 
-      display: false // Hide legend like in the reference image
+      display: false
     },
     tooltip: { 
       mode: 'index', 
@@ -86,15 +86,15 @@ const chartOptions = {
       display: true,
       grid: {
         display: true,
-        color: 'rgba(75, 85, 99, 0.3)', // Subtle grid lines
+        color: 'rgba(75, 85, 99, 0.3)',
         lineWidth: 1,
       },
       ticks: {
-        color: '#9CA3AF', // Gray text
+        color: '#9CA3AF',
         font: {
           size: 11,
         },
-        maxTicksLimit: 6, // Limit number of x-axis labels
+        maxTicksLimit: 6,
       },
       border: {
         display: false,
@@ -102,14 +102,14 @@ const chartOptions = {
     },
     y: {
       display: true,
-      position: 'right', // Position y-axis on right like in the image
+      position: 'right',
       grid: {
         display: true,
-        color: 'rgba(75, 85, 99, 0.3)', // Subtle horizontal grid lines
+        color: 'rgba(75, 85, 99, 0.3)',
         lineWidth: 1,
       },
       ticks: {
-        color: '#9CA3AF', // Gray text
+        color: '#9CA3AF',
         font: {
           size: 11,
         },

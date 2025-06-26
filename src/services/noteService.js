@@ -1,4 +1,3 @@
-// src/services/noteService.js
 import axios from 'axios'
 
 export async function loadNotes(state, token) {

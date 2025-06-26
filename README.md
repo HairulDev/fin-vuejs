@@ -1,5 +1,23 @@
-# Vue 3 + Vite
+# Documentation for Using This Project
+This is frontend vue version.
+.Net core version clone https://github.com/HairulDev/fin-netcore
+RustAxum version clone https://github.com/HairulDev/fin-rustaxum
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+## Prerequisites
+- Ensure you have Node.js and npm installed on your system.
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+## Installation
+1. Clone the repository to your local machine.
+2. Navigate to the project directory.
+3. Create a `.env` file in the project root directory and add the necessary environment variables:
+
+```env
+VITE_API_URL=your_api_url_here
+VITE_API_FMP=https://financialmodelingprep.com
+VITE_API_KEY=your_api_key (go to https://financialmodelingprep.com)
+```
+
+4. Run `npm install` to install the project dependencies.
+
+## Running the Project
+- Use `npm run dev` to start the development server.

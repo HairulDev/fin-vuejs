@@ -1,4 +1,3 @@
-// src/services/stockService.js
 import axios from 'axios'
 
 export async function loadStocks(state, token) {
