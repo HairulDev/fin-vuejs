@@ -1,9 +1,11 @@
 <script setup>
-import { reactive, ref, onMounted, computed, watchEffect } from 'vue'
-import { useForm, } from 'vee-validate'
-import * as yup from 'yup'
-import axios from 'axios'
-import { getCachedOrFetch } from '../utils/cacheUtils'
+import { ref, onMounted, computed, watchEffect } from 'vue'
+
+import { saveToLocalStorage, getFromLocalStorage } from '../utils/storageUtils'
+import { usePortfolioStore } from '../stores/usePortfolioStore'
+import * as portfolioService from '../services/portfolioService'
+import * as stockService from '../services/stockService'
+import * as noteService from '../services/noteService'
 import { formatDate } from '../utils/datetime'
 
 import SummarySection from '../components/SummarySection.vue'
@@ -11,133 +13,20 @@ import ModalStock from '../components/ModalStock.vue'
 import PortfolioSection from '../components/PortfolioSection.vue'
 import { Folder, FolderUp } from 'lucide-vue-next'
 
+
 const token = localStorage.getItem('token')
-
-// ====================== STATE MANAGEMENT ======================
-const state = reactive({
-  // Search Stocks
-  search: reactive({
-    query: '',
-    results: [],
-    loading: false,
-    error: '',
-    showSuggestions: false
-  }),
-
-  // Portfolio
-  portfolio: reactive({
-    dividends: {},
-    items: [],
-    error: '',
-    loading: false
-  }),
-
-  // Notes
-  notes: reactive({
-    showModal: false,
-    action: '',
-    title: '',
-    content: '',
-    filePaths: [],
-    selectedSymbol: '',
-    isDescending: false,
-    list: [],
-    selectedFiles: [],
-    isEditing: false,
-    editingId: null
-  }),
-
-  // Stocks
-  stocks: reactive({
-    showModal: false,
-    modalStep: 1,
-    form: {
-      symbol: '',
-      companyName: '',
-      purchase: '',
-      lastDiv: '',
-      industry: '',
-      marketCap: ''
-    },
-    search: {
-      symbol: '',
-      companyName: '',
-      sortBy: 'symbol',
-      isDescending: false,
-      pageNumber: 1,
-      pageSize: 5
-    },
-    list: [],
-    isEditing: false,
-    editingId: null
-  }),
-
-  // File Preview
-  preview: reactive({
-    url: "",
-    showModal: false
-  }),
-
-  // UI States
-  ui: reactive({
-    showSearchSection: false
-  })
-})
-
-// ====================== VALIDATION SCHEMAS ======================
-const stockSchema = yup.object({
-  symbol: yup.string().required('Symbol is required'),
-  companyName: yup.string().required('Company name is required'),
-  purchase: yup.number().typeError('Must be a number').required('Purchase price is required'),
-  lastDiv: yup.number().typeError('Must be a number').required('Last dividend is required'),
-  industry: yup.string().required('Industry is required'),
-  marketCap: yup.number().typeError('Must be a number').required('Market cap is required')
-})
-
-const { 
-  handleSubmit: handleStockSubmit, 
-  errors: stockErrors,
-  resetForm: resetStockForm,
-  setValues
-} = useForm({
-  validationSchema: stockSchema,
-  initialValues: state.stocks.form
-})
-
-// ====================== COMPUTED PROPERTIES ======================
-const totalValue = computed(() => {
-  return state.portfolio.items.reduce((sum, item) => {
-    const price = parseFloat(item.price) || 0
-    return sum + price
-  }, 0)
-})
-
-// Local storage functions
-function saveTotalPortfolios(key, value, expiryInHours = 24) {
-  const now = new Date()
-  const item = {
-    value: value,
-    expiry: now.getTime() + expiryInHours * 60 * 60 * 1000,
-  }
-  localStorage.setItem(key, JSON.stringify(item))
-}
-
-function getTotalPortfolios(key) {
-  const itemStr = localStorage.getItem(key)
-  if (!itemStr) return null
-
-  const item = JSON.parse(itemStr)
-  const now = new Date()
-
-  if (now.getTime() > item.expiry) {
-    localStorage.removeItem(key)
-    return null
-  }
-  return item.value
-}
-
 const STORAGE_KEY = "totalPortfolios"
-const totalValueOld = ref(getTotalPortfolios(STORAGE_KEY) || totalValue.value)
+
+const {
+  state,
+  stockErrors,
+  handleStockSubmit,
+  resetStockForm,
+  setValues,
+  totalValue
+} = usePortfolioStore()
+
+const totalValueOld = ref(getFromLocalStorage(STORAGE_KEY) || totalValue.value)
 
 const totalGain = computed(() => {
   if (totalValueOld.value === 0) return 0
@@ -145,162 +34,33 @@ const totalGain = computed(() => {
 })
 
 watchEffect(() => {
-  const savedTotalValue = getTotalPortfolios(STORAGE_KEY)
+  const savedTotalValue = getFromLocalStorage(STORAGE_KEY)
   if (!savedTotalValue) {
-    saveTotalPortfolios(STORAGE_KEY, totalValue.value)
+    saveToLocalStorage(STORAGE_KEY, totalValue.value)
   }
 })
 
-// ====================== PORTFOLIO METHODS ======================
-const searchStocks = async () => {
-  console.log("state.search.query====>>",state.search.query)
-  if (!state.search.query) return
-
-  state.search.loading = true
-  state.search.error = ''
-  state.search.results = []
-
-  try {
-    const data = await getCachedOrFetch(
-      'searchCache',
-      state.search.query,
-      async () => {
-        const response = await axios.get(
-          `${import.meta.env.VITE_API_FMP}/api/v3/search?query=${state.search.query}&limit=100&apikey=${import.meta.env.VITE_API_KEY}`
-        )
-        return response.data
-      },
-      5 * 60 * 60 * 1000 // 5 hours
-    )
-
-    state.search.results = data
-    state.search.showSuggestions = true
-  } catch (err) {
-    state.search.error = err.response?.data?.message || 'An error occurred'
-  } finally {
-    state.search.loading = false
-  }
-}
-
+// Portfolio methods
+const searchStocks = () => portfolioService.searchStocks(state, state.search.query)
 const clearSearch = () => {
   state.search.query = ''
   state.search.showSuggestions = false
   state.search.results = []
 }
-
 const selectSuggestion = (item) => {
   state.search.query = `${item.name} (${item.symbol})`
   state.search.showSuggestions = false
-  addToPortfolio(item.symbol)
+  portfolioService.addToPortfolio(state, token, item.symbol)
 }
+const deletePortfolio = (symbol) => portfolioService.deletePortfolio(state, token, symbol)
 
-const addToPortfolio = async (symbol) => {
-  state.search.loading = true
-  try {
-    await axios.post(
-      `${import.meta.env.VITE_API_URL}/api/portfolio/?symbol=${encodeURIComponent(symbol)}`,
-      {},
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
-    alert(`${symbol} added to portfolio successfully.`)
-    await loadPortfolio()
-  } catch (err) {
-    alert(err.response?.data?.message || 'Failed to add to portfolio')
-  } finally {
-    state.search.loading = false
-  }
-}
-
-const loadPortfolio = async () => {
-  state.portfolio.loading = true
-  try {
-    const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/portfolio`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    state.portfolio.items = response.data
-
-    await Promise.all(
-      state.portfolio.items.map(async (item) => {
-        // Load dividend data
-        try {
-          const sortedData = await getCachedOrFetch(
-            'dividendCache',
-            item.symbol,
-            async () => {
-              const result = await axios.get(
-                `${import.meta.env.VITE_API_FMP}/api/v3/historical-price-full/stock_dividend/${encodeURIComponent(item.symbol)}?apikey=${import.meta.env.VITE_API_KEY}`
-              )
-              return result.data.historical
-                ?.slice(0, 18)
-                ?.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) || []
-            },
-            5 * 60 * 60 * 1000
-          )
-          state.portfolio.dividends[item.symbol] = sortedData
-        } catch (err) {
-          state.portfolio.dividends[item.symbol] = []
-        }
-
-        // Load profile data
-        try {
-          const profileData = await getCachedOrFetch(
-            'companyProfileCache',
-            item.symbol,
-            async () => {
-              const profileRes = await axios.get(
-                `${import.meta.env.VITE_API_FMP}/api/v3/profile/${encodeURIComponent(item.symbol)}?apikey=${import.meta.env.VITE_API_KEY}`
-              )
-              return profileRes?.data?.[0] || {}
-            },
-            5 * 60 * 60 * 1000
-          )
-          item.price = profileData.price || '-'
-        } catch (err) {
-          console.error(`Failed to load profile for ${item.symbol}`)
-        }
-      })
-    )
-  } catch (err) {
-    state.portfolio.error = err.response?.data?.message || 'Failed to load portfolio'
-  } finally {
-    state.portfolio.loading = false
-  }
-}
-
-const deletePortfolio = async (symbol) => {
-  if (!confirm('Are you sure you want to delete this portfolio?')) return
-  state.portfolio.loading = true
-  try {
-    await axios.delete(`${import.meta.env.VITE_API_URL}/api/portfolio/?symbol=${encodeURIComponent(symbol)}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    await loadPortfolio()
-  } catch (err) {
-    state.portfolio.error = err.response?.data?.message || 'Failed to delete portfolio'
-  } finally {
-    state.portfolio.loading = false
-  }
-}
-
-// ====================== STOCK METHODS ======================
-const loadStocks = async () => {
-  try {
-    const response = await axios.get(
-      `${import.meta.env.VITE_API_URL}/api/stock?` +
-      `Symbol=${encodeURIComponent(state.stocks.search.symbol)}` +
-      `&CompanyName=${encodeURIComponent(state.stocks.search.companyName)}` +
-      `&SortBy=${encodeURIComponent(state.stocks.search.sortBy)}` +
-      `&IsDescending=${state.stocks.search.isDescending}` +
-      `&PageNumber=${state.stocks.search.pageNumber}` +
-      `&PageSize=${state.stocks.search.pageSize}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
-    state.stocks.list = response.data || []
-  } catch (err) {
-    console.error("Failed to load stocks:", err.response?.data?.message || err.message)
-    state.stocks.list = []
-  }
-}
+// Stock methods
+const loadStocks = () => stockService.loadStocks(state, token)
+const saveStock = handleStockSubmit((values) => stockService.saveStock(state, token, values))
+console.log("state===>>",state.value)
+const updateStock = handleStockSubmit((values) => stockService.updateStock(state, token, values))
+const startEditingStock = (stockId) => stockService.startEditingStock(state, token, stockId)
+const deleteStock = (stockId) => stockService.deleteStock(state, token, stockId)
 
 const onSubmitStock = (e) => {
   e.preventDefault()
@@ -311,114 +71,8 @@ const onSubmitStock = (e) => {
   }
 }
 
-const saveStock = handleStockSubmit(async (values) => {
-  state.portfolio.loading = true
-  try {
-    await axios.post(
-      `${import.meta.env.VITE_API_URL}/api/stock`,
-      values,
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
-    alert('Stock saved successfully.')
-    loadStocks()
-    state.stocks.modalStep = 1
-    resetStockForm()
-  } catch (err) {
-    alert(err.response?.data?.message || 'Failed to save stock.')
-  } finally {
-    state.portfolio.loading = false
-  }
-})
-
-const updateStock = handleStockSubmit(async (values) => {
-  state.portfolio.loading = true
-  try {
-    await axios.put(
-      `${import.meta.env.VITE_API_URL}/api/stock/${state.stocks.editingId}`,
-      values,
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
-    alert('Stock updated successfully.')
-    loadStocks()
-    state.stocks.modalStep = 1
-    resetStockForm()
-    state.stocks.editingId = null
-    state.stocks.isEditing = false
-  } catch (err) {
-    alert(err.response?.data?.message || 'Failed to update stock.')
-  } finally {
-    state.portfolio.loading = false
-  }
-})
-
-const startEditingStock = async (stockId) => {
-  try {
-    const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/stock/${stockId}`)
-    const stock = response.data
-    // Inject ke form
-    setValues({
-      symbol: stock.symbol ?? '',
-      companyName: stock.companyName ?? '',
-      purchase: stock.purchase ?? '',
-      lastDiv: stock.lastDiv ?? '',
-      industry: stock.industry ?? '',
-      marketCap: stock.marketCap ?? ''
-    })
-
-    state.stocks.editingId = stockId
-    state.stocks.isEditing = true
-    state.stocks.modalStep = 2
-  } catch (error) {
-    console.error('Failed to fetch stock:', error)
-    alert('Error fetching stock for editing.')
-  }
-}
-
-const deleteStock = async (stockId) => {
-  if (!confirm('Are you sure you want to delete this stock?')) return
-  state.portfolio.loading = true
-  try {
-    await axios.delete(`${import.meta.env.VITE_API_URL}/api/stock/${stockId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    state.stocks.list = state.stocks.list.filter(item => item.id !== stockId)
-  } catch (err) {
-    alert(err.response?.data?.message || 'Failed to delete stock.')
-  } finally {
-    state.portfolio.loading = false
-  }
-}
-
-const nextPage = () => {
-  state.stocks.search.pageNumber++
-  loadStocks()
-}
-
-const prevPage = () => {
-  if (state.stocks.search.pageNumber > 1) {
-    state.stocks.search.pageNumber--
-    loadStocks()
-  }
-}
-
-// ====================== NOTES METHODS ======================
-const loadNotes = async () => {
-  if (!state.notes.selectedSymbol) return
-
-  try {
-    const response = await axios.get(
-      `${import.meta.env.VITE_API_URL}/api/comment?` +
-      `Symbol=${encodeURIComponent(state.notes.selectedSymbol)}` +
-      `&IsDecsending=${state.notes.isDescending}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
-    state.notes.list = response.data || []
-  } catch (err) {
-    console.error("Failed to load notes:", err.response?.data?.message || err.message)
-    state.notes.list = []
-  }
-}
-
+// Note methods
+const loadNotes = () => noteService.loadNotes(state, token)
 const openNotesModal = (symbol) => {
   state.notes.selectedSymbol = symbol
   state.notes.title = ''
@@ -427,162 +81,18 @@ const openNotesModal = (symbol) => {
   loadNotes()
   state.notes.showModal = true
 }
-
-const startEditingNote = async (noteId, action) => {
-  try {
-    const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/comment/${noteId}`)
-    const note = response.data
-
-    state.notes.action = action
-    state.notes.title = note.title
-    state.notes.content = note.content
-    state.notes.filePaths = note.filePaths || []
-    state.notes.editingId = noteId
-    state.notes.isEditing = true
-    state.notes.showModal = true
-  } catch (error) {
-    console.error('Failed to fetch note:', error)
-    alert('Error fetching note for editing.')
-  }
-}
-
-const saveNote = async () => {
-  state.portfolio.loading = true
-  try {
-    await uploadFile()
-    
-    const payload = {
-      title: state.notes.title,
-      content: state.notes.content,
-      filePath: state.preview.url
-    }
-
-    await axios.post(
-      `${import.meta.env.VITE_API_URL}/api/comment/${encodeURIComponent(state.notes.selectedSymbol)}`,
-      payload,
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
-    
-    alert("Note saved successfully.")
-    loadNotes()
-    resetNoteForm()
-  } catch (err) {
-    console.error("Error saving note:", err)
-    alert(err.response?.data?.message || "Failed to save note.")
-  } finally {
-    state.portfolio.loading = false
-  }
-}
-
-// BUG : edit (exist file) -> upload new file -> old file replaced 
-const updateNote = async () => {
-  state.portfolio.loading = true
-  try {
-    await uploadFile()
-
-    const payload = {
-      title: state.notes.title,
-      content: state.notes.content,
-      filePath: state.preview.url
-    }
-
-    await axios.put(
-      `${import.meta.env.VITE_API_URL}/api/comment/${state.notes.editingId}`,
-      payload,
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
-    
-    const index = state.notes.list.findIndex(n => n.id === state.notes.editingId)
-    if (index !== -1) {
-      state.notes.list[index].title = state.notes.title
-      state.notes.list[index].content = state.notes.content
-    }
-
-    alert('Note updated successfully.')
-    resetNoteForm()
-  } catch (err) {
-    console.error(err)
-    alert('Error updating note.')
-  } finally {
-    state.portfolio.loading = false
-  }
-}
-
-const deleteNote = async (noteId) => {
-  if (!confirm('Are you sure you want to delete this note?')) return
-  state.portfolio.loading = true
-  try {
-    const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/api/comment/${noteId}`)
-    state.notes.filePaths = data.filePaths || []
-
-    if (state.notes.filePaths.length) {
-      for (const file of state.notes.filePaths) {
-        await deleteFile(file)
-      }
-    }
-
-    await axios.delete(`${import.meta.env.VITE_API_URL}/api/comment/${noteId}`)
-    state.notes.list = state.notes.list.filter(note => note.id !== noteId)
-    resetNoteForm()
-  } catch (error) {
-    console.error(error)
-    alert('Error deleting note.')
-  } finally {
-    state.portfolio.loading = false
-  }
-}
-
-const resetNoteForm = () => {
-  state.notes.title = ''
-  state.notes.content = ''
-  state.notes.filePaths = []
-  state.notes.selectedFiles = []
-  state.notes.isEditing = false
-  state.notes.editingId = null
-  state.notes.showModal = false
-}
-
-// ====================== FILE METHODS ======================
-const handleFileChange = (event) => {
-  state.notes.selectedFiles = Array.from(event.target.files)
-}
-
-const uploadFile = async () => {
-  if (!state.notes.selectedFiles.length) return
-  state.portfolio.loading = true
-  
-  const formData = new FormData()
-  state.notes.selectedFiles.forEach(file => {
-    formData.append("files[]", file)
-  })
-
-  try {
-    const { data } = await axios.post("http://localhost:8080/upload", formData)
-    state.preview.url = (data.files || []).join(",")
-    state.notes.selectedFiles = []
-  } catch (error) {
-    console.error("Error uploading files:", error)
-    alert("Error uploading files.")
-  } finally {
-    state.portfolio.loading = false
-  }
-}
-
-const deleteFile = async (file) => {
-  try {
-    await axios.delete(`http://localhost:8080/delete/${file}`)
-  } catch (error) {
-    console.error("Error deleting file:", error)
-    alert("Error deleting file.")
-  }
-}
-
+const startEditingNote = (noteId, action) => noteService.startEditingNote(state, token, noteId, action)
+const saveNote = () => noteService.saveNote(state, token)
+const updateNote = () => noteService.updateNote(state, token)
+const deleteNote = (noteId) => noteService.deleteNote(state, token, noteId)
+const resetNoteForm = () => noteService.resetNoteForm(state)
+const handleFileChange = (event) => { state.notes.selectedFiles = Array.from(event.target.files)}
 const previewFile = (file) => {
   state.preview.url = `http://localhost:8080/download/${file}`
   state.preview.showModal = true
 }
 
-// ====================== UI METHODS ======================
+// UI methods
 const openStocksModal = () => {
   resetStockForm()
   state.stocks.modalStep = 1
@@ -614,9 +124,9 @@ const resetForm = () => {
   state.stocks.modalStep = 1
 }
 
-// ====================== LIFECYCLE HOOKS ======================
+// Lifecycle hooks
 onMounted(() => {
-  loadPortfolio()
+  portfolioService.loadPortfolio(state, token)
 })
 
 watchEffect(() => {
