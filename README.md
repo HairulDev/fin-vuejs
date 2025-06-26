@@ -22,7 +22,8 @@ This repository contains documentation and references for both the **backend** (
 3. Create a `.env` file in the project root directory and add the necessary environment variables:
 
 ```env
-VITE_API_URL=your_api_url_here
+VITE_API_URL=your_api_net_core_url_here
+VITE_API_RUST_URL=your_api_rust_url_here
 VITE_API_FMP=https://financialmodelingprep.com
 VITE_API_KEY=your_api_key (go to https://financialmodelingprep.com)
 ```

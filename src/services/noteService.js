@@ -146,7 +146,7 @@ export async function uploadFile(state, token) {
     })
 
     try {
-        const { data } = await axios.post("http://localhost:8080/upload", formData, {
+        const { data } = await axios.post(`${import.meta.env.VITE_API_RUST_URL}/upload`, formData, {
             headers: { Authorization: `Bearer ${token}` }
         })
         state.preview.url = (data.files || []).join(",")
@@ -161,7 +161,7 @@ export async function uploadFile(state, token) {
 
 export async function deleteFile(state, file) {
     try {
-        await axios.delete(`http://localhost:8080/delete/${file}`)
+        await axios.delete(`${import.meta.env.VITE_API_RUST_URL}/delete/${file}`)
     } catch (error) {
         console.error("Error deleting file:", error)
         alert("Error deleting file.")
