@@ -33,7 +33,7 @@ export async function searchStocks(state, query) {
 export async function loadPortfolio(state, token) {
     state.portfolio.loading = true
     try {
-        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/portfolio`, {
+        const response = await axios.get(`http://localhost:5167/api/portfolio`, {
             headers: { Authorization: `Bearer ${token}` },
         })
         state.portfolio.items = response.data
@@ -46,7 +46,7 @@ export async function loadPortfolio(state, token) {
                         item.symbol,
                         async () => {
                             const result = await axios.get(
-                                `${import.meta.env.VITE_API_FMP}/api/v3/historical-price-full/stock_dividend/${encodeURIComponent(item.symbol)}?apikey=${import.meta.env.VITE_API_KEY}`
+                                `https://financialmodelingprep.com/api/v3/historical-price-full/stock_dividend/${encodeURIComponent(item.symbol)}?apikey=${import.meta.env.VITE_API_KEY}`
                             )
                             return result.data.historical
                                 ?.slice(0, 18)
@@ -65,7 +65,7 @@ export async function loadPortfolio(state, token) {
                         item.symbol,
                         async () => {
                             const profileRes = await axios.get(
-                                `${import.meta.env.VITE_API_FMP}/api/v3/profile/${encodeURIComponent(item.symbol)}?apikey=${import.meta.env.VITE_API_KEY}`
+                                `https://financialmodelingprep.com/api/v3/profile/${encodeURIComponent(item.symbol)}?apikey=${import.meta.env.VITE_API_KEY}`
                             )
                             return profileRes?.data?.[0] || {}
                         },

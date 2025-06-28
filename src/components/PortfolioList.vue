@@ -35,8 +35,9 @@
             <div class="flex justify-between items-start mb-4">
               <div>
                 <h3 class="font-bold text-lg text-blue-400">{{ item.symbol }}</h3>
-                <p class="text-2xl font-bold text-white mt-1">${{ item.price }}</p>
+                <p class="text-left text-gray-400 text-sm">{{ item.companyName }}</p>
               </div>
+              <div>
               <button 
                 @click="$emit('delete', item.symbol)" 
                 class="text-gray-400 hover:text-red-400 transition-colors p-1 rounded hover:bg-gray-600"
@@ -47,6 +48,8 @@
                 </svg>
               </button>
             </div>
+          </div>
+          <p class="text-center text-2xl font-bold text-white mt-1">${{ item.price }}</p>
   
             <!-- Dividend Chart -->
             <div class="mt-4">

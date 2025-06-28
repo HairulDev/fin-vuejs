@@ -17,7 +17,8 @@ const chartData = {
     const dateObj = new Date(item.date);
     const day = dateObj.getDate();
     const month = dateObj.toLocaleDateString('en-US', { month: 'short' });
-    return `${day} ${month}`;
+    const year = dateObj.getFullYear();
+    return `${day} ${month} ${year}`;
   }),
   datasets: [
     {
