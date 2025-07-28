@@ -9,6 +9,7 @@ import * as noteService from '../services/noteService'
 
 import SummarySection from '../components/SummarySection.vue'
 import ModalStock from '../components/ModalStock.vue'
+import CompanyComparison from '../components/CompanyComparisonSection.vue'
 import PortfolioSection from '../components/PortfolioSection.vue'
 import ModalNotes from '../components/ModalNotes.vue'
 import ModalPreview from '../components/ModalPreview.vue'
@@ -122,10 +123,16 @@ const resetForm = () => {
   state.stocks.modalStep = 1
 }
 
+
+
+
 // Lifecycle hooks
 onMounted(() => {
   portfolioService.loadPortfolio(state, token)
+  portfolioService.loadPortfolioComparison(state, token)
 })
+
+console.log("state.comparison.items ===>>",state.comparison.items)
 
 watchEffect(() => {
   loadStocks()
@@ -143,6 +150,13 @@ watchEffect(() => {
         :stocks-count="state.stocks.list.length"
         :open-stocks-modal="openStocksModal"
       />
+      
+      <CompanyComparison
+        :items="state.comparison.items"
+        :loading="state.comparison.loading"
+        :error="state.comparison.error"
+      />
+
 
       <!-- Modal Stock -->
       <ModalStock

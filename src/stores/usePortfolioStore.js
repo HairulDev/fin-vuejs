@@ -17,6 +17,11 @@ export function usePortfolioStore() {
             error: '',
             loading: false
         }),
+        comparison: reactive({
+            items: [],
+            error: '',
+            loading: false
+        }),
         notes: reactive({
             showModal: false,
             action: '',

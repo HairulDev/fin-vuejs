@@ -20,7 +20,7 @@
       <div class="p-6">
         <div v-if="loading" class="text-center py-8">
           <div class="inline-block animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
-          <p class="text-gray-400 mt-2">Loading portfolio...</p>
+          <p class="text-gray-400 mt-2">Loading...</p>
         </div>
   
         <p v-else-if="error" class="text-red-400 text-center py-8">{{ error }}</p>

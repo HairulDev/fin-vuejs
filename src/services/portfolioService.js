@@ -30,10 +30,31 @@ export async function searchStocks(state, query) {
     }
 }
 
+
+export async function loadPortfolioComparison(state, token) {
+    try {
+        state.comparison.loading = true
+        const portfolioRes = await axios.get(`${import.meta.env.VITE_API_URL}/api/portfolio`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+
+        const symbols = portfolioRes.data.map(item => item.symbol).join(',')
+        if (!symbols) return
+
+        const response = await axios.get(`${import.meta.env.VITE_API_PYTHON_URL}/compare?symbols=${symbols}`)
+        state.comparison.items = response.data
+    } catch (err) {
+        state.comparison.error.value = err.message || 'Gagal memuat perbandingan'
+    } finally {
+        state.comparison.loading = false
+    }
+}
+
+
 export async function loadPortfolio(state, token) {
     state.portfolio.loading = true
     try {
-        const response = await axios.get(`http://localhost:5167/api/portfolio`, {
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/portfolio`, {
             headers: { Authorization: `Bearer ${token}` },
         })
         state.portfolio.items = response.data
