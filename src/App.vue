@@ -6,6 +6,8 @@
         <button @click="toggleSidebar" class="bg-blue-600 text-white p-2 rounded-lg shadow hover:bg-blue-700 transition-colors">
           <component :is="isOpen ? X : Menu" class="w-5 h-5" />
         </button>
+        <!-- tambahkan text disini -->
+        <span class="text-white ml-2">Welcome to Hairul Project Portfolio</span>
       </div>
 
       <div class="">
