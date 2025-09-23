@@ -30,26 +30,38 @@ export async function searchStocks(state, query) {
     }
 }
 
-
 export async function loadPortfolioComparison(state, token) {
     try {
         state.comparison.loading = true
-        const portfolioRes = await axios.get(`${import.meta.env.VITE_API_URL}/api/portfolio`, {
-            headers: { Authorization: `Bearer ${token}` }
-        })
+
+        // --- ambil daftar symbol portfolio ---
+        const portfolioRes = await axios.get(
+            `${import.meta.env.VITE_API_URL}/api/portfolio`,
+            { headers: { Authorization: `Bearer ${token}` } }
+        )
 
         const symbols = portfolioRes.data.map(item => item.symbol).join(',')
         if (!symbols) return
 
-        const response = await axios.get(`${import.meta.env.VITE_API_PYTHON_URL}/compare?symbols=${symbols}`)
-        state.comparison.items = response.data
+        const compareData = await getCachedOrFetch(
+            'portfolioComparisonCache',
+            symbols,
+            async () => {
+                const res = await axios.get(
+                    `${import.meta.env.VITE_API_PYTHON_URL}/compare?symbols=${symbols}`
+                )
+                return res.data
+            },
+            60 * 60 * 1000
+        )
+
+        state.comparison.items = compareData
     } catch (err) {
         state.comparison.error.value = err.message || 'Gagal memuat perbandingan'
     } finally {
         state.comparison.loading = false
     }
 }
-
 
 export async function loadPortfolio(state, token) {
     state.portfolio.loading = true
@@ -136,3 +148,91 @@ export async function deletePortfolio(state, token, symbol) {
         state.portfolio.loading = false
     }
 }
+
+export async function getDividends(symbol) {
+    return getCachedOrFetch(
+        'dividendCache',
+        symbol,
+        async () => {
+            const url = `${import.meta.env.VITE_API_FMP}/api/v3/historical-price-full/stock_dividend/${encodeURIComponent(symbol)}?apikey=${import.meta.env.VITE_API_KEY}`
+            try {
+                const { data } = await axios.get(url)
+                return (
+                    data?.historical
+                        ?.slice(0, 18)
+                        ?.sort((a, b) => new Date(a.date) - new Date(b.date)) || []
+                )
+            } catch {
+                return []
+            }
+        },
+        6 * 60 * 60 * 1000
+    )
+}
+
+export async function getProfile(symbol) {
+    return getCachedOrFetch(
+        'companyProfileCache',
+        symbol,
+        async () => {
+            const { data } = await axios.get(
+                `${import.meta.env.VITE_API_FMP}/api/v3/profile/${encodeURIComponent(symbol)}?apikey=${import.meta.env.VITE_API_KEY}`
+            )
+            return data?.[0] || {}
+        },
+        6 * 60 * 60 * 1000
+    )
+}
+
+export async function getKeyMetricsTTM(symbol) {
+    return await getCachedOrFetch('keyMetricsCache', symbol, async () => {
+        const { data } = await axios.get(
+            `${import.meta.env.VITE_API_FMP}/api/v3/key-metrics-ttm/${encodeURIComponent(symbol)}?limit=1&apikey=${import.meta.env.VITE_API_KEY}`
+        )
+        return data
+    })
+};
+
+export async function getCompanyProfile(symbol) {
+    return await getCachedOrFetch('companyProfileArrayCache', symbol, async () => {
+        const { data } = await axios.get(`${import.meta.env.VITE_API_FMP}/api/v3/profile/${encodeURIComponent(symbol)}?apikey=${import.meta.env.VITE_API_KEY}`)
+        return data
+    })
+};
+
+export async function getSecFilings(symbol) {
+    return await getCachedOrFetch('secFilingsCache', symbol, async () => {
+        const { data } = await axios.get(
+            `${import.meta.env.VITE_API_FMP}/api/v3/sec_filings/${encodeURIComponent(symbol)}?type=10-K&page=0&apikey=${import.meta.env.VITE_API_KEY}`
+        )
+        return data
+    })
+};
+
+export async function getIncomeStatements(symbol) {
+    return await getCachedOrFetch('incomeStatementsCache', symbol, async () => {
+        const { data } = await axios.get(
+            `${import.meta.env.VITE_API_FMP}/api/v3/income-statement/${encodeURIComponent(symbol)}?limit=2&apikey=${import.meta.env.VITE_API_KEY}`
+        )
+        return data
+    })
+};
+
+export async function getCashFlowStatements(symbol) {
+    return await getCachedOrFetch('cashFlowStatementsCache', symbol, async () => {
+        const { data } = await axios.get(
+            `${import.meta.env.VITE_API_FMP}/api/v3/cash-flow-statement/${encodeURIComponent(symbol)}?limit=2&apikey=${import.meta.env.VITE_API_KEY}`
+        )
+        return data
+    })
+};
+
+export async function getBalanceSheetStatements(symbol) {
+    return await getCachedOrFetch('balanceSheetStatementsCache', symbol, async () => {
+        const { data } = await axios.get(
+            `${import.meta.env.VITE_API_FMP}/api/v3/balance-sheet-statement/${encodeURIComponent(symbol)}?limit=1&apikey=${import.meta.env.VITE_API_KEY}`
+        )
+        return data
+    })
+}
+

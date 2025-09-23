@@ -23,7 +23,8 @@ const emit = defineEmits([
   'clear',
   'select',
   'delete',
-  'open-notes'
+  'open-notes',
+  'open-detail'
 ])
 
 const toggleSearchSection = () => {
@@ -58,6 +59,11 @@ const deletePortfolio = (symbol) => {
 const openNotesModal = (symbol) => {
   emit('open-notes', symbol)
 }
+
+const openDetailModal = (symbol) => {
+  console.log("openDetailModal called with symbol:", symbol)
+  emit('open-detail', symbol)
+}
 </script>
 
 <template>
@@ -91,6 +97,7 @@ const openNotesModal = (symbol) => {
         :error="portfolioError"
         @delete="deletePortfolio"
         @open-notes="openNotesModal"
+        @open-detail="openDetailModal"
       />
     </div>
   </div>

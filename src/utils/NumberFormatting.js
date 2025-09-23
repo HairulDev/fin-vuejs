@@ -1,5 +1,4 @@
 export const formatLargeMonetaryNumber = (number) => {
-  console.log("number=>>", number)
   if (number < 0) {
     return "-" + formatLargeMonetaryNumber(-1 * number);
   }
@@ -36,3 +35,20 @@ export const formatLargeNonMonetaryNumber = (number) => {
 export const formatRatio = (ratio) => {
   return (Math.round(ratio * 100) / 100).toFixed(2);
 };
+
+
+export const formatNumber = (value) => {
+  if (value == null) return '-'
+  return Number(value).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+}
+
+export const formatPercent = (value) => {
+  if (value == null) return '-'
+  return `${(Number(value) * 100).toLocaleString(undefined, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 2
+  })}%`
+}

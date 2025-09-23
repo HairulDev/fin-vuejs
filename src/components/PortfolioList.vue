@@ -8,7 +8,7 @@
     error: String
   })
   
-  defineEmits(['delete', 'open-notes'])
+  defineEmits(['delete', 'open-notes', 'open-detail'])
   </script>
   
 <template>
@@ -60,18 +60,30 @@
                 <p class="text-gray-500 text-sm">No dividend data available</p>
               </div>
               
-              <!-- Chart Label -->
-              <div class="flex items-center justify-between text-xs text-gray-400 gap-2">
-                <span v-if="dividends[item.symbol]?.length">
-                  Dividend History {{ dividends[item.symbol].length }} records
-                </span>
-                <button
-                  @click="$emit('open-notes', item.symbol)"
-                  class="px-3 py-1 text-xs bg-gray-700 text-gray-300 rounded hover:bg-gray-600 transition-colors flex items-center gap-2"
-                >
-                  Notes
-                </button>
+              <div class="flex items-center justify-between text-xs text-gray-400">
+                <div>
+                  <span v-if="dividends[item.symbol]?.length">
+                    Dividend History {{ dividends[item.symbol].length }} records
+                  </span>
+                </div>
+
+                <!-- Bagian Kanan -->
+                <div class="flex items-center gap-2">
+                  <button
+                    @click="$emit('open-notes', item.symbol)"
+                    class="px-3 py-1 text-xs bg-gray-700 text-gray-300 rounded hover:bg-gray-600 transition-colors flex items-center gap-2"
+                  >
+                    Notes
+                  </button>
+                  <button
+                    class="px-3 py-1 text-xs bg-gray-700 text-gray-300 rounded hover:bg-gray-600"
+                    @click="$emit('open-detail', item)"
+                  >
+                    Detail
+                  </button>
+                </div>
               </div>
+
             </div>
           </div>
         </div>

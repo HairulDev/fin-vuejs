@@ -14,7 +14,7 @@ defineProps({
     <section class="my-6">
     <div class="bg-gray-800 rounded-lg border border-gray-700">
       <div class="px-6 py-2 border-b border-gray-700">
-        <h2 class="text-xl font-semibold text-white">Company Comparison</h2>
+        <h2 class="text-xl font-semibold text-white">Stock Comparison</h2>
       </div>
   
       <div v-if="loading" class="text-center py-8">
