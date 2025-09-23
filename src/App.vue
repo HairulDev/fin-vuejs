@@ -7,7 +7,7 @@
           <component :is="isOpen ? X : Menu" class="w-5 h-5" />
         </button>
         <!-- tambahkan text disini -->
-        <span class="text-white ml-2">Welcome to Hairul Project Portfolio</span>
+        <span class="text-white ml-2">Welcome to Hairul Project</span>
       </div>
 
       <div class="">

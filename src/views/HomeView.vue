@@ -10,6 +10,7 @@ import * as noteService from '../services/noteService'
 import SummarySection from '../components/SummarySection.vue'
 import ModalStock from '../components/ModalStock.vue'
 import CompanyComparison from '../components/CompanyComparisonSection.vue'
+import PredictionTable from '../components/PredictionTable.vue'
 import PortfolioSection from '../components/PortfolioSection.vue'
 import ModalNotes from '../components/ModalNotes.vue'
 import ModalPreview from '../components/ModalPreview.vue'
@@ -225,10 +226,37 @@ function downloadJSON() {
         :open-stocks-modal="openStocksModal"
       />
       
-      <CompanyComparison
-        :items="state.comparison.items"
-        :loading="state.comparison.loading"
-        :error="state.comparison.error"
+      <!-- <div class="flex flex-col md:flex-row gap-4"> -->
+        <CompanyComparison
+          :items="state.comparison.items"
+          :loading="state.comparison.loading"
+          :error="state.comparison.error"
+          class="flex-1"
+        />
+
+        <PredictionTable class="flex-1" />
+      <!-- </div> -->
+
+      <!-- Portfolio Section -->
+      <PortfolioSection
+        :show-search-section="state.ui.showSearchSection"
+        :search-query="state.search.query"
+        :search-results="state.search.results"
+        :search-loading="state.search.loading"
+        :search-error="state.search.error"
+        :show-suggestions="state.search.showSuggestions"
+        :portfolio-items="state.portfolio.items"
+        :portfolio-dividends="state.portfolio.dividends"
+        :portfolio-loading="state.portfolio.loading"
+        :portfolio-error="state.portfolio.error"
+        @update:show-search-section="val => state.ui.showSearchSection = val"
+        @update:search-query="val => state.search.query = val"
+        @search="searchStocks"
+        @clear="clearSearch"
+        @select="selectSuggestion"
+        @delete="deletePortfolio"
+        @open-notes="openNotesModal"
+        @open-detail="openDetailModal"
       />
 
       <!-- Modal Stock -->
@@ -256,28 +284,6 @@ function downloadJSON() {
         @backToStockList="backToStockList"
         @resetForm="resetForm"
         @onSubmitStock="onSubmitStock"
-      />
-
-      <!-- Portfolio Section -->
-      <PortfolioSection
-        :show-search-section="state.ui.showSearchSection"
-        :search-query="state.search.query"
-        :search-results="state.search.results"
-        :search-loading="state.search.loading"
-        :search-error="state.search.error"
-        :show-suggestions="state.search.showSuggestions"
-        :portfolio-items="state.portfolio.items"
-        :portfolio-dividends="state.portfolio.dividends"
-        :portfolio-loading="state.portfolio.loading"
-        :portfolio-error="state.portfolio.error"
-        @update:show-search-section="val => state.ui.showSearchSection = val"
-        @update:search-query="val => state.search.query = val"
-        @search="searchStocks"
-        @clear="clearSearch"
-        @select="selectSuggestion"
-        @delete="deletePortfolio"
-        @open-notes="openNotesModal"
-        @open-detail="openDetailModal"
       />
 
       <!-- Modal Notes -->

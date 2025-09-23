@@ -52,3 +52,10 @@ export const formatPercent = (value) => {
     maximumFractionDigits: 2
   })}%`
 }
+
+export const formatToTwoDecimalPlaces = (number) => {
+  if (typeof number !== 'number') {
+    return '-';
+  }
+  return number.toFixed(2);
+};
