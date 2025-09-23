@@ -125,7 +125,7 @@ export async function addToPortfolio(state, token, symbol) {
             {},
             { headers: { Authorization: `Bearer ${token}` } }
         )
-        alert(`${symbol} added to portfolio successfully.`)
+        // alert(`${symbol} added to portfolio successfully.`)
         await loadPortfolio(state, token)
     } catch (err) {
         alert(err.response?.data?.message || 'Failed to add to portfolio')

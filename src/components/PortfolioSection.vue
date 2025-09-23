@@ -67,7 +67,7 @@ const openDetailModal = (symbol) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-900 text-white">
+  <div class="bg-gray-900 text-white">
     <div class="px-0 py-0">
       <button 
         @click="toggleSearchSection" 

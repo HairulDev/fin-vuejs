@@ -225,17 +225,6 @@ function downloadJSON() {
         :stocks-count="state.stocks.list.length"
         :open-stocks-modal="openStocksModal"
       />
-      
-      <!-- <div class="flex flex-col md:flex-row gap-4"> -->
-        <CompanyComparison
-          :items="state.comparison.items"
-          :loading="state.comparison.loading"
-          :error="state.comparison.error"
-          class="flex-1"
-        />
-
-        <PredictionTable class="flex-1" />
-      <!-- </div> -->
 
       <!-- Portfolio Section -->
       <PortfolioSection
@@ -257,6 +246,15 @@ function downloadJSON() {
         @delete="deletePortfolio"
         @open-notes="openNotesModal"
         @open-detail="openDetailModal"
+      />
+
+        <PredictionTable />
+      
+      <!-- <div class="flex flex-col md:flex-row gap-4"> </div>-->
+      <CompanyComparison
+      :items="state.comparison.items"
+      :loading="state.comparison.loading"
+      :error="state.comparison.error"
       />
 
       <!-- Modal Stock -->
@@ -319,7 +317,6 @@ function downloadJSON() {
         :url="state.preview.url"
         @update:show-modal="val => state.preview.showModal = val"
       />
-
 
       <!-- Modal -->
       <div
@@ -599,7 +596,6 @@ function downloadJSON() {
 
         </div>
       </div>
-       <!-- end modal -->
 
     </div>
   </div>

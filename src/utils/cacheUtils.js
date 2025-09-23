@@ -54,7 +54,7 @@ export const getCachedOrFetch = async (
 
 //hapus dari cache
 export const deleteCacheForSymbol = (symbol) => {
-    const cachesToCheck = ['dividendCache', 'companyProfileCache']; // Tambahkan nama cache lainnya kalau ada
+    const cachesToCheck = ['dividendCache', 'companyProfileCache'];
     cachesToCheck.forEach((cacheKey) => {
         const cache = loadCacheFromLocalStorage(cacheKey);
         if (cache[symbol]) {
